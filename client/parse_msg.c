@@ -710,14 +710,22 @@ static int do_get_localfile(const char *did_str, const char *page_str, const cha
 	int page_num = 0;
 	DIR *dirptr = NULL;
 	struct dirent *entry;
-	char buf[4096] = {0};
-	char tmp[4096] = {0};
-	char str[4096] = {0};
 	char str_music_dir[1024] = {0};
+	char buf_count[32] = {0};
 
 	strcpy(str_music_dir, "/tmp/music/");
 	strcat(str_music_dir, ch_dir);
 	printf("str_music_dir : %s \n", str_music_dir);
+
+        json_object * pjson_obj_msg = NULL;
+        pjson_obj_msg = json_object_new_object();
+	json_object * pjson_obj_array_files = NULL;
+	pjson_obj_array_files = json_object_new_array();
+        json_object * pjson_obj_element = NULL;
+        pjson_obj_element = json_object_new_object();
+	
+	json_object_object_add(pjson_obj_element, "count", json_object_new_string("0"));
+	json_object_array_add(pjson_obj_array_files, pjson_obj_element);
 
 	if (page_str)
 	{
@@ -725,33 +733,40 @@ static int do_get_localfile(const char *did_str, const char *page_str, const cha
 	}	
 	if ((dirptr = opendir(str_music_dir)) != NULL) 
 	{
-		char dname[2048] = {0};
 		while ((entry = readdir(dirptr)) != NULL) 
 		{
-			//printf("i/xx = %d, entry->d_type = %d\n", i/(EACH_PAGE_FILES), entry->d_type);
+			printf("i/xx = %d, entry->d_type = %d\n", i/(EACH_PAGE_FILES), entry->d_type);
 			if (strcmp(entry->d_name,".")==0 || strcmp(entry->d_name,"..")==0) 
 			{
 				continue;  
 			}
 			if ((i/(EACH_PAGE_FILES) == page_num) && (entry->d_type == 8)) 
 			{
-				char ch_music_name[512] = {0};
-				int n_len = strlen(entry->d_name);
-				memcpy(ch_music_name, entry->d_name, n_len - 4);
+				printf("111,++++++++++++++++++++++++++++++++++++++++++++++\n");
+				pjson_obj_element = NULL;
+        			pjson_obj_element = json_object_new_object();
+				char filename_str[512] = {0};
+				memcpy(filename_str, entry->d_name, strlen(entry->d_name) - strlen(".mp3"));
+				char fileurl_str[512] = {0};
+				strcpy(fileurl_str, ch_dir);
+				strcat(fileurl_str, "/");
+				strcat(fileurl_str, entry->d_name);
 
-				char * str_dname = entry->d_name;
-				char str_file_url[512] =  {0};
-				strcpy(str_file_url, ch_dir);
-				strcat(str_file_url, "/");
-				strcat(str_file_url, str_dname);
-				char * str_pic = "http://www.aistoy.com:9331/res-audio/erge/logo.jpg";
-				snprintf(dname, 2048, "{\"filename\":\"%s\", \"fileurl\":\"%s\", \"picture\":\"%s\", \"filetype\":\"%s\"},",ch_music_name, str_file_url, str_pic, ch_dir);
-				strcat(tmp, dname);
+				char * picture_str = "http://www.aistoy.com:9331/res-audio/erge/logo.jpg";
+				char filetype_str[512];
+				strcpy(filetype_str, ch_dir);
+				json_object_object_add(pjson_obj_element, "filename", json_object_new_string(filename_str));
+				json_object_object_add(pjson_obj_element, "fileurl", json_object_new_string(fileurl_str));
+				json_object_object_add(pjson_obj_element, "picture", json_object_new_string(picture_str));
+				json_object_object_add(pjson_obj_element, "filetype", json_object_new_string(filetype_str));
+				json_object_array_add(pjson_obj_array_files, pjson_obj_element);
 			}
 			i++;
 		}
-		snprintf(buf, 4096, "{\"count\":\"%d\"},", i);
-		snprintf(buf + strlen(buf), 4096, tmp);
+        	pjson_obj_element = json_object_new_object();
+		sprintf(buf_count, "%d", i);
+		json_object_object_add(pjson_obj_element, "count", json_object_new_string(buf_count));
+		json_object_array_put_idx(pjson_obj_array_files, 0, pjson_obj_element);
 	}
 	else
 	{
@@ -759,11 +774,17 @@ static int do_get_localfile(const char *did_str, const char *page_str, const cha
 		printf("nd do_get_localfile errno: %d\n", errno);
 	}
 
-	snprintf(str, 4096, "{\"cmd\":\"list_file\", \"device_id\":\"%s\", \"open_id\":\"%s\", \"files\":[%s]}",did_str, ch_open_id, buf);
+	json_object_object_add(pjson_obj_msg, "cmd", json_object_new_string("list_file"));
+	json_object_object_add(pjson_obj_msg, "device_id", json_object_new_string(did_str));
+	json_object_object_add(pjson_obj_msg, "open_id", json_object_new_string(ch_open_id));
+	json_object_object_add(pjson_obj_msg, "files", pjson_obj_array_files);
 
-	printf("send local file list:%s\n", str);
-        mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(str), str);
-//        mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+	printf("send local file list:%s\n", json_object_to_json_string(pjson_obj_msg));
+        mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+
+        json_object_put(pjson_obj_msg);
+        json_object_put(pjson_obj_array_files);
+        json_object_put(pjson_obj_element);
 
 	return 0;
 }

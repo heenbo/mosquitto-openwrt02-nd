@@ -1,7 +1,7 @@
 CROSS_COMPILE = mips-openwrt-linux-
 CC = gcc
 
-CFLAGS = -Wall -ggdb -O2 -I./include
+CFLAGS = -Wall -g -O2 -I./include
 #CFLAGS = -Wall -O2 -I./include
 JSON_CFLAGS = -I/home/heenbo/work/openwrt-bb/staging_dir/target-mips_34kc_uClibc-0.9.33.2/usr/include/json-c 
 MPD_CFLAGS = -I/home/heenbo/work/openwrt-bb/staging_dir/target-mips_34kc_uClibc-0.9.33.2/usr/include/mpd
