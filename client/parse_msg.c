@@ -115,6 +115,14 @@ int parse_msg(CONTEXT * ctx, json_object * pjson_obj_msg_recv)
 			{
 				do_parse_msg_list_file(pjson_obj_msg_recv, did_str);
 			}
+			else if (!strcmp(cmd_str, CMD_STR_LIST_FILE_PLAY))
+			{
+				do_parse_msg_list_file_play(pjson_obj_msg_recv, did_str);
+			}
+			else if (!strcmp(cmd_str, CMD_STR_LIST_FILE_DELETE))
+			{
+				do_parse_msg_list_file_delete(pjson_obj_msg_recv, did_str);
+			}
 
 		}
 	}
@@ -619,8 +627,20 @@ void do_parse_msg_pause(json_object * pjson_obj_msg_recv, char * did_str)
 
 void do_parse_msg_stop(json_object * pjson_obj_msg_recv, char * did_str)
 {
-	
+	json_object * pjson_obj_msg = NULL;
 
+	pthread_mutex_lock(&mutex);
+	//mpd_run_stop(conn);
+	pthread_mutex_unlock(&mutex);
+	
+        pjson_obj_msg = json_object_new_object();
+        json_object_object_add(pjson_obj_msg, CMD_STR_DEVICE_ID, json_object_new_string(device_id));
+        json_object_object_add(pjson_obj_msg, CMD_STR_CMD, json_object_new_string("stop"));
+        json_object_object_add(pjson_obj_msg, CMD_STR_RESULT, json_object_new_string(CMD_STR_OK));
+
+        mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+        json_object_put(pjson_obj_msg);
+        pjson_obj_msg = NULL;
 }
 
 void do_parse_msg_power_off(json_object * pjson_obj_msg_recv, char * did_str)
@@ -787,4 +807,126 @@ static int do_get_localfile(const char *did_str, const char *page_str, const cha
         json_object_put(pjson_obj_element);
 
 	return 0;
+}
+
+void do_parse_msg_list_file_play(json_object * pjson_obj_msg_recv, char * did_str)
+{
+	json_object * json_obj_open_id = NULL;
+	char * open_id_str = NULL;
+	json_object * json_obj_file_url = NULL;
+	char * file_url_str = NULL;
+        json_object * pjson_obj_msg = NULL;
+
+	json_object_object_get_ex(pjson_obj_msg_recv, "open_id", &json_obj_open_id);
+	if (json_obj_open_id) 
+	{
+		open_id_str = (char *)json_object_get_string(json_obj_open_id);
+	}
+
+	json_object_object_get_ex(pjson_obj_msg_recv, "file_url", &json_obj_file_url);
+	if (json_obj_file_url)
+	{
+		file_url_str = (char *)json_object_get_string(json_obj_file_url);
+		if(0 != strlen(file_url_str))
+		{
+        		pjson_obj_msg = json_object_new_object();
+			if (add_song_to_mpc(conn, file_url_str))
+			{
+				json_object_object_add(pjson_obj_msg, "device_id", json_object_new_string(device_id));
+				json_object_object_add(pjson_obj_msg, "cmd", json_object_new_string("list_file_play"));
+				json_object_object_add(pjson_obj_msg, "result", json_object_new_string("ok"));
+				json_object_object_add(pjson_obj_msg, "open_id", json_object_new_string(open_id_str));
+			} 
+			else
+			{
+				json_object_object_add(pjson_obj_msg, "device_id", json_object_new_string(device_id));
+				json_object_object_add(pjson_obj_msg, "cmd", json_object_new_string("list_file_play"));
+				json_object_object_add(pjson_obj_msg, "result", json_object_new_string("failed"));
+				json_object_object_add(pjson_obj_msg, "open_id", json_object_new_string(open_id_str));
+			}	
+			printf("send pjson_obj_msg:%s\n", json_object_to_json_string(pjson_obj_msg));
+			mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+        		json_object_put(pjson_obj_msg);
+		}
+	}	
+
+}
+
+void do_parse_msg_list_file_delete(json_object * pjson_obj_msg_recv, char * did_str)
+{
+	int ret = 0;
+	json_object * json_obj_open_id = NULL;
+	char * open_id_str = NULL;
+	json_object * json_obj_file_url = NULL;
+	char * file_url_str = NULL;
+        json_object * pjson_obj_msg = NULL;
+	char music_url_str[512] = {0};
+	char rm_lst_str[512] = {0};
+	char filelst_m3u_str[128] = {0};
+	char filelst_str[128] = {0};
+	char filedir_str[128] = {0};
+
+	json_object_object_get_ex(pjson_obj_msg_recv, "open_id", &json_obj_open_id);
+	if (json_obj_open_id) 
+	{
+		open_id_str = (char *)json_object_get_string(json_obj_open_id);
+	}
+
+	json_object_object_get_ex(pjson_obj_msg_recv, "file_url", &json_obj_file_url);
+	if (json_obj_file_url)
+	{
+		file_url_str = (char *)json_object_get_string(json_obj_file_url);
+		if(0 != strlen(file_url_str))
+		{
+			strcpy(music_url_str, "/tmp/music/");
+			strcat(music_url_str, file_url_str);
+			printf("music_url_str:%s\n", music_url_str);
+			strncpy(filedir_str, file_url_str, strstr(file_url_str, "/")-file_url_str);
+			printf("filedir_str: %s\n", filedir_str);
+			
+        		pjson_obj_msg = json_object_new_object();
+			if(0 == unlink(music_url_str))
+			{
+				strcpy(filelst_m3u_str, filedir_str);
+				strcat(filelst_m3u_str, ".lst.m3u");
+				printf("filelst_m3u_str: %s\n", filelst_m3u_str);
+
+				strcpy(filelst_str, filedir_str);
+				strcat(filelst_str, ".lst");
+				printf("filelst_str: %s\n", filelst_str);
+				snprintf(rm_lst_str, 512, "rm -r /etc/config/.mpd/playlists/%s", filelst_m3u_str);
+				printf("rm_lst_str: %s\n", rm_lst_str);
+
+				pthread_mutex_lock(&mutex);
+				ret = mpd_run_update(conn, filedir_str);
+				printf("LINE: %d ret: %d \n", __LINE__, ret);
+				system(rm_lst_str);
+				printf("LINE: %d ret: %d \n", __LINE__, ret);
+				ret = mpd_run_playlist_add(conn, filelst_str, filedir_str);
+				printf("LINE: %d ret: %d \n", __LINE__, ret);
+				pthread_mutex_unlock(&mutex);
+				if(ret)
+				{
+		
+				}
+
+				json_object_object_add(pjson_obj_msg, "device_id", json_object_new_string(device_id));
+				json_object_object_add(pjson_obj_msg, "cmd", json_object_new_string("list_file_delete"));
+				json_object_object_add(pjson_obj_msg, "result", json_object_new_string("ok"));
+				json_object_object_add(pjson_obj_msg, "open_id", json_object_new_string(open_id_str));
+
+			}
+			else
+			{
+				json_object_object_add(pjson_obj_msg, "device_id", json_object_new_string(device_id));
+				json_object_object_add(pjson_obj_msg, "cmd", json_object_new_string("list_file_delete"));
+				json_object_object_add(pjson_obj_msg, "result", json_object_new_string("failed"));
+				json_object_object_add(pjson_obj_msg, "open_id", json_object_new_string(open_id_str));
+			}
+			printf("send pjson_obj_msg:%s\n", json_object_to_json_string(pjson_obj_msg));
+			mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+        		json_object_put(pjson_obj_msg);
+		}
+	}	
+
 }

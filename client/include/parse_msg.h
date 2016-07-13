@@ -28,6 +28,8 @@
 #define CMD_STR_OPEN_ID		"open_id"
 #define CMD_STR_FILE_TYPE	"file_type"
 #define CMD_STR_PAGE_NUM	"page_num"
+#define CMD_STR_LIST_FILE_PLAY	"list_file_play"
+#define CMD_STR_LIST_FILE_DELETE	"list_file_delete"
 
 
 #define CMD_STR_RESULT		"result"
@@ -85,6 +87,10 @@ extern void do_parse_msg_power_off(json_object * pjson_obj_msg_recv, char * did_
 extern void do_parse_msg_play_status(json_object * pjson_obj_msg_recv, char * did_str);
 
 extern void do_parse_msg_list_file(json_object * pjson_obj_msg_recv, char * did_str);
+
+extern void do_parse_msg_list_file_play(json_object * pjson_obj_msg_recv, char * did_str);
+
+extern void do_parse_msg_list_file_delete(json_object * pjson_obj_msg_recv, char * did_str);
 /*do_play_music*/
 extern int do_play_music(const char * device_id, const char *uri);
 
