@@ -36,6 +36,7 @@ pthread_t pthdNdInfor;
 int nBatteryCheck = -1;
 pthread_t pthdBatteryCheck;
 bool bBatteryAlarm = false;
+char * ch_music_url = NULL;
 
 extern char device_id[32];
 extern int i2c_file;
@@ -123,6 +124,10 @@ int parse_msg(CONTEXT * ctx, json_object * pjson_obj_msg_recv)
 			{
 				do_parse_msg_list_file_delete(pjson_obj_msg_recv, did_str);
 			}
+			else if (!strcmp(cmd_str, CMD_STR_XFCHATMUSIC))
+			{
+				do_parse_msg_xfchatmusic(pjson_obj_msg_recv, did_str);
+			}
 
 		}
 	}
@@ -169,8 +174,6 @@ int parse_cmdstr(json_object * pjson_obj_cmd)
                         if (!strcmp(str, CMD_STR_XFCHAT_MUSIC))
                         {
                                 mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_cmd)), json_object_to_json_string(pjson_obj_cmd));
-                                //does not anything
-                                //check_xfchat_music(ch_music_name, ch_rc_type);
                         }
 
                         if (!strcmp(str, CMD_STR_STOP))
@@ -929,4 +932,53 @@ void do_parse_msg_list_file_delete(json_object * pjson_obj_msg_recv, char * did_
 		}
 	}	
 
+}
+
+static void play_failed_sound(void)
+{
+	system("echo 0 > /sys/class/gpio/gpio1/value");
+	system("aplay -t raw -f S16_LE -r 16000 /usr/share/failed.raw &");
+	return;
+}
+
+static void play_music(const char * url_str)
+{
+	printf("play_music LINE:%d  url: %s\n", __LINE__, url_str);
+	system("killall aplay");
+	system("killall xfchat");
+	if(0 == strlen(url_str))
+	{
+		printf("play_music LINE:%d  url: %s\n", __LINE__, url_str);
+		play_failed_sound();
+	}
+	else
+	{
+		printf("play_music LINE:%d  url: %s\n", __LINE__, url_str);
+		pthread_mutex_lock(&mutex);
+		mpd_run_clear(conn);
+		mpd_run_add(conn, url_str);
+		bool bplay_music = mpd_run_play(conn);
+		printf("@@ play music mpd_run_play bplay_music:%d \n", bplay_music);
+		pthread_mutex_unlock(&mutex);
+	}
+	return;
+}
+
+void do_parse_msg_xfchatmusic(json_object * pjson_obj_msg_recv, char * did_str)
+{
+	json_object * json_obj_url = NULL;
+	char * url_str = NULL;
+
+	json_object_object_get_ex(pjson_obj_msg_recv, "url", &json_obj_url);
+	if (json_obj_url) 
+	{
+		url_str = (char *)json_object_get_string(json_obj_url);
+		if(0 != strlen(url_str))
+		{
+			strcpy(ch_music_url, url_str);	
+			printf("parse_msg ch_music_url: %s, uri_str: %s\n", ch_music_url, url_str);
+			play_music(ch_music_url);
+			memset(ch_music_url, 0, strlen(ch_music_url));
+		}
+	}
 }
