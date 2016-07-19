@@ -3,11 +3,12 @@
 
 /*config*/
 #define CLIENT_ID	"mosquitto_client_pub"
-#define HOST_ADDRESS	"192.168.199.244"
-#define HOST_PORT	8883
+//#define HOST_ADDRESS	"192.168.199.244"
+#define HOST_ADDRESS	"120.25.58.52"
+#define HOST_PORT	1883
 #define KEEPALIVE	60
 #define QOS_LEVEL	2
-#define MQTT_SERVER_TOPIC	"mqtt"
+#define MQTT_SERVER_TOPIC	"gpio"
 
 /*cafile  certfile  keyfile*/
 #define TLS_VERSION 	"tlsv1"

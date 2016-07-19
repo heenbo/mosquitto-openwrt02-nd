@@ -586,7 +586,7 @@ int do_send_voice(const char * did, const char * uri, const char * contact)
         json_object_object_add(pjson_obj_msg, "device_id",      json_object_new_string(did));
         printf("send voice uri 3:%s\n", uri);
         json_object_object_add(pjson_obj_msg, "contact_id",     json_object_new_string(contact));
-        json_object_object_add(pjson_obj_msg, "uri",             json_object_new_string(uri));
+        json_object_object_add(pjson_obj_msg, "voice_uri",             json_object_new_string(uri));
 
         printf("send voice uri 2:%s\n", uri);
         printf("msg:%s\n", json_object_to_json_string(pjson_obj_msg));

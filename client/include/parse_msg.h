@@ -94,6 +94,12 @@ extern void do_parse_msg_list_file_play(json_object * pjson_obj_msg_recv, char *
 extern void do_parse_msg_list_file_delete(json_object * pjson_obj_msg_recv, char * did_str);
 
 extern void do_parse_msg_xfchatmusic(json_object * pjson_obj_msg_recv, char * did_str);
+
+extern void * LoginThread(void * arg);
+
+extern int get_bLogin(void);
+
+extern int set_bLogin(bool value);
 /*do_play_music*/
 extern int do_play_music(const char * device_id, const char *uri);
 

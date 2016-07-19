@@ -28,6 +28,8 @@
 #include "parse_msg.h"
 #include "read_json.h"
 
+bool bLogin = false;
+
 /*NdInforThread*/
 int nNdInfor = -1;
 pthread_t pthdNdInfor;
@@ -411,7 +413,8 @@ void * BatteryCheckThread(void * arg)
                         }
                 }
 
-                sleep(20);
+                //sleep(20);
+                sleep(20*100);
         }
 }
 
@@ -504,7 +507,7 @@ void do_parse_msg_login(json_object * pjson_obj_msg_recv, char *did_str)
 	{
 //		ctx->state = STATE_LOGINED;
 		do_getcontacts(device_id);
-//              bLogin = true;  
+		bLogin = true;  
 //		bBatteryAlarm = false;        
 		if (-1 == nNdInfor)
 		{
@@ -981,4 +984,42 @@ void do_parse_msg_xfchatmusic(json_object * pjson_obj_msg_recv, char * did_str)
 			memset(ch_music_url, 0, strlen(ch_music_url));
 		}
 	}
+}
+
+void * LoginThread(void * arg)
+{
+	while(1)
+	{
+		printf("FUNC: %s LINE: %d \n", __FUNCTION__, __LINE__);
+
+		if(false == get_bLogin())
+		{
+			json_object * pjson_obj_msg ;
+			pjson_obj_msg = json_object_new_object();
+			json_object_object_add(pjson_obj_msg, CMD_STR_CMD, json_object_new_string(CMD_STR_LOGIN));
+			json_object_object_add(pjson_obj_msg, CMD_STR_DEVICE_ID, json_object_new_string(device_id));
+
+			printf("send pjson_obj_msg:%s\n", json_object_to_json_string(pjson_obj_msg));
+			mosquitto_publish_send_msg(MQTT_SERVER_TOPIC, strlen(json_object_to_json_string(pjson_obj_msg)), json_object_to_json_string(pjson_obj_msg));
+			json_object_put(pjson_obj_msg);
+			pjson_obj_msg = NULL;
+		}
+		else
+		{
+			break;
+		}
+		sleep(5);
+	}
+	return NULL;
+}
+
+int get_bLogin(void)
+{
+	return bLogin;
+}
+
+int set_bLogin(bool value)
+{
+	bLogin = value;
+	return bLogin;
 }
